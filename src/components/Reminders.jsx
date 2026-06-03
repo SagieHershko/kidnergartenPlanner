@@ -12,12 +12,12 @@ function getPriority(id) {
   return PRI_MAP[id] ?? PRIORITIES[1]
 }
 
-function AddToCalendarBtn({ reminder, addToCalendar }) {
+function AddToCalendarBtn({ reminder, addToCalendar, selectedDate }) {
   const [state, setState] = useState('idle')
 
   async function handle() {
     setState('busy')
-    const ok = await addToCalendar({ title: reminder.text, time: '' })
+    const ok = await addToCalendar({ title: reminder.text, time: '', date: selectedDate })
     setState(ok ? 'done' : 'err')
     if (ok) setTimeout(() => setState('idle'), 2200)
   }
@@ -34,7 +34,7 @@ function AddToCalendarBtn({ reminder, addToCalendar }) {
   )
 }
 
-export default function Reminders({ reminders, setReminders, addToCalendar }) {
+export default function Reminders({ reminders, setReminders, addToCalendar, selectedDate }) {
   const [text,     setText]     = useState('')
   const [priority, setPriority] = useState('med')
 
@@ -118,7 +118,7 @@ export default function Reminders({ reminders, setReminders, addToCalendar }) {
                   {pri.label}
                 </span>
                 {addToCalendar && (
-                  <AddToCalendarBtn reminder={r} addToCalendar={addToCalendar} />
+                  <AddToCalendarBtn reminder={r} addToCalendar={addToCalendar} selectedDate={selectedDate} />
                 )}
                 <button className="remove-btn" onClick={() => remove(r.id)}>🗑</button>
               </li>

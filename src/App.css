@@ -33,24 +33,234 @@
   display: flex;
   align-items: center;
   padding: 0 24px;
-  gap: 16px;
+  gap: 12px;
   box-shadow: 0 1px 3px rgba(60,64,67,.15);
 }
 
-.app-bar-icon { font-size: 1.4rem; }
+/* ── Date picker trigger (calendar icon + date in header) ── */
+.date-picker-wrap {
+  position: relative;
+}
+
+.date-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--dur) var(--ease);
+}
+
+.date-picker-trigger:hover { background: var(--bg); }
+
+.app-bar-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+.date-picker-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
 
 .app-bar-title {
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
-  flex-shrink: 0;
+  line-height: 1.2;
 }
 
 .app-bar-date {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: var(--text-2);
-  padding-inline-end: 16px;
-  border-inline-end: 1px solid var(--border);
+  line-height: 1.2;
+}
+
+.cal-chevron {
+  font-size: 0.65rem;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+/* ── Mini calendar popup ── */
+.mini-calendar {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-start: 0;
+  z-index: 300;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md), 0 8px 24px rgba(60,64,67,.2);
+  padding: 16px;
+  min-width: 280px;
+  animation: fadeSlideIn 0.15s var(--ease);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  direction: ltr; /* keep arrows intuitive regardless of RTL */
+}
+
+.cal-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--text-2);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  transition: all var(--dur) var(--ease);
+  font-family: inherit;
+}
+.cal-nav-btn:hover { background: var(--bg); color: var(--text); }
+
+.cal-month-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-day-name {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+  padding: 4px 0;
+}
+
+.cal-empty { /* spacer cell */ }
+
+.cal-day-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text);
+  transition: all var(--dur) var(--ease);
+  gap: 1px;
+}
+
+.cal-day-btn:hover   { background: var(--bg); }
+.cal-today           { font-weight: 700; color: var(--primary); }
+.cal-today::after    { /* underline dot for today */
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.cal-selected        { background: var(--primary) !important; color: #fff !important; }
+.cal-selected::after { background: rgba(255,255,255,0.6); }
+
+.cal-has-data {
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: block;
+  flex-shrink: 0;
+}
+.cal-selected .cal-has-data { background: rgba(255,255,255,0.8); }
+
+.cal-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.cal-today-btn {
+  padding: 5px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 500;
+  transition: all var(--dur) var(--ease);
+}
+.cal-today-btn:hover { background: var(--primary-light); border-color: var(--primary); }
+
+/* ── "Back to today" button in app bar ── */
+.btn-today {
+  padding: 5px 14px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all var(--dur) var(--ease);
+}
+.btn-today:hover { background: var(--primary); color: #fff; }
+
+/* ── Mood notes (elaboration section) ── */
+.mood-selected-wrap { display: flex; flex-direction: column; gap: 14px; }
+
+.mood-selected { display: flex; align-items: center; gap: 14px; }
+.mood-big      { font-size: 2.2rem; }
+.mood-selected-label { font-size: 1rem; font-weight: 600; flex: 1; }
+
+.mood-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.mood-note-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 2px;
+}
+
+.mood-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  resize: vertical;
+  outline: none;
+  line-height: 1.5;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.mood-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26,115,232,0.15);
+  background: var(--surface);
 }
 
 /* ─── Layout ─── */

@@ -14,19 +14,23 @@ const GoogleIcon = () => (
   </svg>
 )
 
-export default function GoogleCalendar({ onAddEventReady }) {
-  const [status, setStatus] = useState('loading') // loading | setup | disconnected | connected | error
+export default function GoogleCalendar({ onAddEventReady, selectedDate }) {
+  const [status,    setStatus]    = useState('loading')
   const [calEvents, setCalEvents] = useState([])
-  const [busy, setBusy] = useState(false)
-  const tokenClientRef = useRef(null)
-  const signedInRef = useRef(false)
+  const [busy,      setBusy]      = useState(false)
+  const tokenClientRef  = useRef(null)
+  const signedInRef     = useRef(false)
+  // Keep a ref so loadEvents always uses the latest date without being a dep
+  const selectedDateRef = useRef(selectedDate)
+  useEffect(() => { selectedDateRef.current = selectedDate }, [selectedDate])
 
   const loadEvents = useCallback(async () => {
+    if (!signedInRef.current) return
     setBusy(true)
     try {
-      const now   = new Date()
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-      const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
+      const date  = selectedDateRef.current
+      const start = new Date(date + 'T00:00:00').toISOString()
+      const end   = new Date(new Date(date + 'T00:00:00').getTime() + 86_400_000).toISOString()
       const res   = await window.gapi.client.calendar.events.list({
         calendarId: 'primary',
         timeMin: start,
@@ -40,17 +44,25 @@ export default function GoogleCalendar({ onAddEventReady }) {
     } finally {
       setBusy(false)
     }
-  }, [])
+  }, []) // stable — reads date via ref
 
-  const addEvent = useCallback(async ({ title, time, description = '' }) => {
+  // Reload when selected date changes while connected
+  useEffect(() => {
+    if (status === 'connected') loadEvents()
+  }, [selectedDate, status, loadEvents])
+
+  const addEvent = useCallback(async ({ title, time, description = '', date }) => {
     if (!signedInRef.current) return false
-    const now = new Date()
-    const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const targetDate = new Date((date ?? selectedDateRef.current) + 'T00:00:00')
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+    const pad  = n => String(n).padStart(2, '0')
+    const ymd  = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
     let resource
     if (time) {
       const [h, m] = time.split(':').map(Number)
-      const start  = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m)
+      const start  = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), h, m)
       const end    = new Date(start.getTime() + 3_600_000)
       resource = {
         summary: title, description,
@@ -58,12 +70,11 @@ export default function GoogleCalendar({ onAddEventReady }) {
         end:   { dateTime: end.toISOString(),   timeZone: tz },
       }
     } else {
-      const d    = now.toISOString().slice(0, 10)
-      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString().slice(0, 10)
+      const nextDay = new Date(targetDate.getTime() + 86_400_000)
       resource = {
         summary: title, description,
-        start: { date: d },
-        end:   { date: next },
+        start: { date: ymd(targetDate) },
+        end:   { date: ymd(nextDay) },
       }
     }
 
@@ -94,23 +105,20 @@ export default function GoogleCalendar({ onAddEventReady }) {
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) { setStatus('setup'); return }
-
     let cancelled = false
 
     async function init() {
       try {
         await waitFor(() => !!window.gapi)
-        await new Promise((res) => window.gapi.load('client', res))
+        await new Promise(res => window.gapi.load('client', res))
         await window.gapi.client.init({ discoveryDocs: [DISCOVERY] })
-
         await waitFor(() => !!window.google?.accounts?.oauth2)
-
         if (cancelled) return
 
         tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
           client_id: GOOGLE_CLIENT_ID,
           scope: SCOPES,
-          callback: async (resp) => {
+          callback: async resp => {
             if (resp.error) { setStatus('disconnected'); return }
             signedInRef.current = true
             setStatus('connected')
@@ -128,29 +136,18 @@ export default function GoogleCalendar({ onAddEventReady }) {
     return () => { cancelled = true }
   }, [loadEvents])
 
-  // Expose addEvent to parent whenever sign-in state changes
   useEffect(() => {
     onAddEventReady(status === 'connected' ? addEvent : null)
   }, [status, addEvent, onAddEventReady])
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="card gcal-card">
       <div className="card-header-row">
-        <h2>
-          <GoogleIcon />
-          Google Calendar
-        </h2>
+        <h2><GoogleIcon />Google Calendar</h2>
         {status === 'connected' && (
           <div className="gcal-header-actions">
-            <button
-              className="btn-icon-sm"
-              onClick={loadEvents}
-              disabled={busy}
-              title="רענן"
-            >
-              ↻
-            </button>
+            <button className="btn-icon-sm" onClick={loadEvents} disabled={busy} title="רענן">↻</button>
             <button className="btn-text-xs" onClick={signOut}>התנתק</button>
           </div>
         )}
@@ -158,45 +155,26 @@ export default function GoogleCalendar({ onAddEventReady }) {
 
       {status === 'setup' && (
         <div className="gcal-setup-banner">
-          להפעלת האינטגרציה, הוסף את ה-Client ID שלך ב-
-          <code>src/googleConfig.js</code>
-          <br />
-          הוראות מפורטות מופיעות בתוך הקובץ.
+          להפעלת האינטגרציה, הוסף את ה-Client ID שלך ב-<code>src/googleConfig.js</code>
         </div>
       )}
-
-      {status === 'loading' && (
-        <p className="gcal-msg">טוען...</p>
-      )}
-
-      {status === 'error' && (
-        <p className="gcal-msg gcal-error">שגיאה בחיבור ל-Google Calendar</p>
-      )}
-
+      {status === 'loading'      && <p className="gcal-msg">טוען...</p>}
+      {status === 'error'        && <p className="gcal-msg gcal-error">שגיאה בחיבור ל-Google Calendar</p>}
       {status === 'disconnected' && (
-        <button
-          className="gcal-connect-btn"
-          onClick={signIn}
-          disabled={!tokenClientRef.current}
-        >
-          <GoogleIcon />
-          התחבר עם Google Calendar
+        <button className="gcal-connect-btn" onClick={signIn} disabled={!tokenClientRef.current}>
+          <GoogleIcon />התחבר עם Google Calendar
         </button>
       )}
 
       {status === 'connected' && (
         <>
           {busy && <p className="gcal-msg">טוען אירועים...</p>}
-          {!busy && calEvents.length === 0 && (
-            <p className="gcal-msg">אין אירועים ב-Google Calendar להיום</p>
-          )}
+          {!busy && calEvents.length === 0 && <p className="gcal-msg">אין אירועים ל-Google Calendar בתאריך זה</p>}
           {!busy && calEvents.length > 0 && (
             <ul className="gcal-list">
               {calEvents.map(ev => {
                 const timeStr = ev.start.dateTime
-                  ? new Date(ev.start.dateTime).toLocaleTimeString('he-IL', {
-                      hour: '2-digit', minute: '2-digit',
-                    })
+                  ? new Date(ev.start.dateTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
                   : 'כל היום'
                 return (
                   <li key={ev.id} className="gcal-item">

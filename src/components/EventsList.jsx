@@ -9,12 +9,12 @@ const CATEGORIES = [
 
 const CAT_ICON = Object.fromEntries(CATEGORIES.map(c => [c.id, c.icon]))
 
-function AddToCalendarBtn({ event, addToCalendar }) {
+function AddToCalendarBtn({ event, addToCalendar, selectedDate }) {
   const [state, setState] = useState('idle') // idle | busy | done | err
 
   async function handle() {
     setState('busy')
-    const ok = await addToCalendar({ title: event.title, time: event.time })
+    const ok = await addToCalendar({ title: event.title, time: event.time, date: selectedDate })
     setState(ok ? 'done' : 'err')
     if (ok) setTimeout(() => setState('idle'), 2200)
   }
@@ -31,7 +31,7 @@ function AddToCalendarBtn({ event, addToCalendar }) {
   )
 }
 
-export default function EventsList({ events, setEvents, addToCalendar }) {
+export default function EventsList({ events, setEvents, addToCalendar, selectedDate }) {
   const [title,    setTitle]    = useState('')
   const [time,     setTime]     = useState('')
   const [category, setCategory] = useState('class')
@@ -112,7 +112,7 @@ export default function EventsList({ events, setEvents, addToCalendar }) {
               <span className="event-time">{ev.time || '--:--'}</span>
               <span className="event-title">{ev.title}</span>
               {addToCalendar && (
-                <AddToCalendarBtn event={ev} addToCalendar={addToCalendar} />
+                <AddToCalendarBtn event={ev} addToCalendar={addToCalendar} selectedDate={selectedDate} />
               )}
               <button className="remove-btn" onClick={() => removeEvent(ev.id)}>🗑</button>
             </li>
